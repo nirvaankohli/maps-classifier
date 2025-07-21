@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blue Select Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <style>
+        
+        html, body {
+
+            height: 100%;
+            margin: 0;
+            padding: 0;
+
+        }
+
+        body {
+
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+
+        }
+
+        #map-container {
+
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+
+        }
+
+    </style>
+</head>
+<body>
+    <div id="map-container"></div>
+
+    <script>
+
+        const TILE_SIZE_METERS = 110000;
+
+        let map = null;
+        let rectangle = null;
+        function initializeMap() {
+
+            map = L.map('map-container').setView([48.8566, 2.3522], 4);
+            
+            const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                
+                attribution: ''
+
+            });
+
+            satelliteLayer.addTo(map);
+            map.on('click', handleMapClick);
+            setTimeout(() => { map.invalidateSize(); }, 100);
+
+        }
+
+        function handleMapClick(e) {
+
+            const lat = e.latlng.lat;
+            const lng = e.latlng.lng;
+
+            if (rectangle) { map.removeLayer(rectangle); }
+
+            const latDelta = TILE_SIZE_METERS / 111000;
+            const lngDelta = TILE_SIZE_METERS / (111000 * Math.cos(lat * Math.PI / 180));
+            
+            rectangle = L.rectangle([
+            
+                [lat - latDelta/2, lng - lngDelta/2],
+                
+                [lat + latDelta/2, lng + lngDelta/2]
+            
+            ], 
+            
+            {
+
+                color: '#3b82f6',
+
+                weight: 2,
+
+                fillOpacity: 0.2
+
+            }).addTo(map);
+
+            map.setView([lat, lng], map.getZoom());
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+
+            initializeMap();
+
+        });
+
+    </script>
+</body>
+</html>
