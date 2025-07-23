@@ -341,4 +341,199 @@ if st.session_state.page == 'home':
 
 
 elif st.session_state.page == 'paper':
+
     st.header("📖 Behind the Scenes (READ PLS)")
+
+    st.markdown("""
+    
+    # EuroSAT Training Pipeline Comparison: V1 vs V2 vs V3
+
+This document provides a deep-dive comparison of the three major versions of the EuroSAT land cover classification training pipeline in this project. It explains the code logic, behind-the-scenes improvements, and visualizations, referencing upgrade notes, logs, and images. The goal is to help you understand not just what changed, but why, and how each version works under the hood.
+
+---
+
+## Table of Contents
+- [EuroSAT Training Pipeline Comparison: V1 vs V2 vs V3](#eurosat-training-pipeline-comparison-v1-vs-v2-vs-v3)
+  - [Table of Contents](#table-of-contents)
+  - [Overview](#overview)
+  - [V1: MobileNetV2 Baseline](#v1-mobilenetv2-baseline)
+    - [Code Highlights](#code-highlights)
+    - [Result](#result)
+  - [V2: EfficientNet-B0 Upgrade](#v2-efficientnet-b0-upgrade)
+    - [Code Highlights](#code-highlights-1)
+    - [Result](#result-1)
+  - [V3: GoogleLeNet + Advanced Augmentation (Planned)](#v3-googlelenet--advanced-augmentation-planned)
+    - [Code Highlights](#code-highlights-2)
+    - [Status](#status)
+  - [Visualizations \& Metrics](#visualizations--metrics)
+    - [V2 Training History](#v2-training-history)
+    - [V2 Confusion Matrix](#v2-confusion-matrix)
+    - [V1 and V2 Logs](#v1-and-v2-logs)
+  - [Summary Table](#summary-table)
+  - [References](#references)
+
+---
+
+## Overview
+
+The EuroSAT project aims to classify satellite images into 10 land cover classes. Over three major versions, the pipeline has evolved in model architecture, data augmentation, evaluation, and code structure. Each version builds on the lessons and results of the previous one.
+
+---
+
+## V1: MobileNetV2 Baseline
+- **Model:** MobileNetV2 (pretrained, classifier head replaced)
+- **Data Augmentation:** Moderate (random crops, flips, rotation, color jitter)
+- **Dataset Handling:** Custom `FolderImageDataset` with manual label mapping
+- **Training Logic:**
+  - 80/20 random split for train/val
+  - AdamW optimizer, ReduceLROnPlateau scheduler
+  - Early stopping (patience=10)
+  - Logging to JSON (logging was buggy)
+  - Best model checkpointing
+- **EuroSAT Adaptation:** 10 classes, resized to 224x224, ImageNet normalization
+
+### Code Highlights
+- **Simple, readable structure**: All logic in one file, with clear dataset and model classes.
+- **Augmentation**: Uses `RandomResizedCrop`, horizontal/vertical flips, rotation, and color jitter.
+- **Model**: Loads MobileNetV2, freezes early layers, replaces classifier for 10 classes.
+- **Training**: Loops over epochs, tracks best validation accuracy, saves best model.
+
+### Result
+- **Best Validation Accuracy:** ~96.78% ([see V1_log.csv](#references))
+- **Limitations:**
+  - Moderate augmentation, may overfit
+  - Logging not robust
+  - No visualizations
+
+---
+
+## V2: EfficientNet-B0 Upgrade
+
+- **Model:** EfficientNet-B0 (pretrained, early layers frozen, custom classifier head)
+- **Data Augmentation:** Extensive (random resized crop, flips, rotation, color jitter, grayscale, affine)
+- **Dataset Handling:** Custom `EuroSATDataset` with class-to-index mapping
+- **Training Logic:**
+  - 80/20 random split for train/val
+  - AdamW optimizer, ReduceLROnPlateau scheduler
+  - Early stopping (patience=15)
+  - Logging to CSV (epoch-by-epoch)
+  - Best model checkpointing
+- **EuroSAT Adaptation:** 10 classes, resized to 224x224, ImageNet normalization
+- **Visualization:**
+  - Confusion matrix and training history plots
+  - Saves a detailed training summary as JSON
+
+### Code Highlights
+- **Model**: EfficientNet-B0, with a larger, more regularized classifier head (Dropout, ReLU, Linear).
+- **Augmentation**: Much more aggressive, including `RandomAffine`, `RandomGrayscale`, and stronger jitter.
+- **Logging**: Metrics logged to CSV for easy analysis; summary and plots saved for reproducibility.
+- **Visualization**: Generates and saves confusion matrix and training curves.
+
+### Result
+- **Best Validation Accuracy:** 97.39% ([see V2_log.csv](#references))
+- **Visualizations:**
+  - ![V2 Training History](V2_training_history.png)
+  - ![V2 Confusion Matrix](V2_confusion_matrix.png)
+- **Improvements:**
+  - Stronger augmentation = better generalization
+  - More robust logging and visualization
+  - Modular code, easier to maintain
+
+---
+
+## V3: GoogleLeNet + Advanced Augmentation (Planned)
+
+- **Model:** GoogleLeNet (Inception V1, pretrained, all layers unfrozen, custom classifier head)
+- **Data Augmentation:** Very extensive (adds AutoAugment, RandAugment, TrivialAugmentWide, RandomErasing)
+- **Dataset Handling:** Stratified split (ensures class balance in train/val)
+- **Training Logic:**
+  - Mixed-precision (AMP) support for faster training
+  - Deterministic seeding for full reproducibility
+  - Expanded metrics: accuracy, precision, recall, F1, macro F1, confusion matrix, classification report
+  - Logging to CSV and JSON (all metrics)
+  - Improved visualizations
+- **EuroSAT Adaptation:** 10 classes, resized to 224x224, ImageNet normalization
+
+### Code Highlights
+- **Model**: GoogleLeNet, all layers trainable, custom classifier head for EuroSAT.
+- **Augmentation**: Adds state-of-the-art policies (AutoAugment, RandAugment, etc.) for maximum diversity.
+- **Split**: Uses `StratifiedShuffleSplit` for balanced validation.
+- **Metrics**: Computes and logs per-class precision, recall, F1, macro F1, and full classification report.
+- **Visualization**: Improved confusion matrix and training curves.
+
+### Status
+- **Training not yet completed** (see [V2toV3.md](#references) for planned upgrades and expected results)
+- **Expected Accuracy:** >98%
+
+---
+
+## Visualizations & Metrics
+
+### V2 Training History
+![V2 Training History](V2_training_history.png)
+
+- **Top Left:** Loss curves (train vs val)
+- **Top Right:** Accuracy curves (train vs val)
+- **Bottom Left:** Learning rate schedule
+- **Bottom Right:** Validation accuracy
+
+### V2 Confusion Matrix
+![V2 Confusion Matrix](V2_confusion_matrix.png)
+
+- **Interpretation:**
+  - Most predictions are correct (diagonal)
+  - Minor confusion between similar classes (e.g., Pasture vs AnnualCrop)
+  - No class is severely underperforming
+
+### V1 and V2 Logs
+- **V1:** Logging did not work, but best val accuracy was 96.78%
+- **V2:** See [V2_log.csv](#references) for full epoch-by-epoch metrics
+
+---
+
+## Summary Table
+
+| Aspect                | V1 (MobileNetV2)         | V2 (EfficientNet-B0)        | V3 (GoogleLeNet, planned)   |
+|-----------------------|--------------------------|-----------------------------|-----------------------------|
+| Model                 | MobileNetV2              | EfficientNet-B0             | GoogleLeNet (Inception V1)  |
+| Augmentation          | Moderate                 | Extensive                   | Very extensive + AutoAug    |
+| Dataset Split         | Random 80/20             | Random 80/20                | Stratified 80/20            |
+| Metrics               | Accuracy                 | Accuracy, confusion matrix   | Accuracy, precision, recall, F1, macro F1, confusion matrix, classification report |
+| Logging               | JSON (buggy)             | CSV, plots, JSON summary     | CSV, plots, JSON (all metrics) |
+| Visualization         | None                     | Confusion matrix, history    | Improved confusion matrix, history |
+| Model Saving          | Best only                | Best + frozen + metadata     | Best + all metrics + ready for deployment |
+| Accuracy (Val)        | 96.78%                   | 97.39%                      | >98% (expected)             |
+
+---
+
+## References
+
+- **Upgrade Notes:**
+
+  - [V1 to V2](upgrade‑notes/V1toV2.md)
+
+  - [V2 to V3](upgrade‑notes/V2toV3.md)
+
+- **Logs:**
+
+  - [V1_log.csv](V1_log.csv)
+
+  - [V2_log.csv](V2_log.csv)
+
+- **Visualizations:**
+
+  - [V2_training_history.png](V2_training_history.png)
+
+  - [V2_confusion_matrix.png](V2_confusion_matrix.png)
+
+- **Code:**
+
+  - [trainingV1.py](trainingV1.py)
+
+  - [trainingV2.py](trainingV2.py)
+  
+  - [trainingV3.py](trainingV3.py)
+
+    
+    
+    """)
