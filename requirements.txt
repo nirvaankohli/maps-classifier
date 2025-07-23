@@ -10,5 +10,5 @@ tqdm>=4.62.0
 matplotlib>=3.4.0
 scikit-learn>=1.0.0
 seaborn>=0.11.0
-opencv-python>=4.5.0
+opencv-python-headless>=4.5.0
 folium>=0.12.0 
