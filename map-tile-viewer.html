@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Map Tile Viewer</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/C:\Users\nirva\OneDrive\Maps Classifier\maps-classifier\map-tile-viewer.htmlsZ9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <style>
+
+        :root {
+
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --background: #f8fafc;
+            --foreground: #0f172a;
+            --muted: #64748b;
+            --muted-background: #f1f5f9;
+            --border: #e2e8f0;
+            --radius: 0.5rem;
+
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(to bottom right, #f8fafc, #dbeafe);
+            color: var(--foreground);
+            line-height: 1.5;
+            min-height: 100vh;
+            padding: 1rem;
+
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        header { text-align: center; margin-bottom: 2rem; }
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(to right, #3b82f6, #4f46e5);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .subtitle { font-size: 1.1rem; color: var(--muted); }
+        .grid { display: grid; grid-template-columns: 1fr; gap: 1.5rem; }
+        @media (min-width: 1024px) { .grid { grid-template-columns: 1fr 1fr; } }
+        .card {
+            background-color: white;
+            border-radius: var(--radius);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+        }
+        .card-header { padding: 1.25rem; border-bottom: 1px solid var(--border); }
+        .card-title { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.25rem; }
+        .card-description { color: var(--muted); font-size: 0.875rem; }
+        .card-content { padding: 1.25rem; }
+        #map-container {
+            height: 400px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            overflow: hidden;
+            position: relative;
+        }
+        .coordinates-display { margin-top: 0.5rem; font-size: 0.875rem; color: var(--muted); }
+        .selected-image {
+            max-width: 100%;
+            border-radius: var(--radius);
+            margin: 1rem 0;
+            object-fit: contain;
+        }
+        .loading-overlay {
+
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            display: none;
+
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(59, 130, 246, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--primary);
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        .btn {
+            
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.5rem 1rem;
+            border-radius: var(--radius);
+            font-weight: 500;
+            font-size: 0.875rem;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary { background-color: var(--primary); color: white; }
+        .btn-primary:hover:not(:disabled) { background-color: var(--primary-hover); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .control-buttons { margin-top: 1rem; display: flex; gap: 0.5rem; }
+    
+    </style>
+
+</head>
+
+<body>
+
+    <div class="container">
+    
+        <header>
+
+            <h1>Map Tile Viewer</h1>
+            <p class="subtitle">Select an area on the map to view the exact satellite tile</p>
+        
+        </header>
+
+        <div class="grid">
+        
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Map Selection</h2>
+                    <p class="card-description">Click on the map to select a 110km x 110km satellite tile</p>
+                </div>
+                <div class="card-content">
+                    <div id="map-container">
+                        <div class="loading-overlay" id="loading-overlay">
+                            <div class="spinner"></div>
+                        </div>
+                    </div>
+                    <div id="coordinates-display" class="coordinates-display"></div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Selected Tile</h2>
+                    <p class="card-description">Exact view of the selected map area</p>
+                </div>
+                <div class="card-content">
+                    <div id="tile-container" style="text-align: center;">
+                        <img id="selected-image" class="selected-image" style="display: none;" alt="Selected Map Tile">
+                        <p id="no-selection" style="color: var(--muted); padding: 2rem 0;">Click on the map to select a tile</p>
+                    </div>
+                    <div class="control-buttons">
+                        <button id="download-btn" class="btn btn-primary" style="display: none;">Download Tile</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+
+        const mapContainer = document.getElementById('map-container');
+        const selectedImage = document.getElementById('selected-image');
+        const noSelection = document.getElementById('no-selection');
+        const downloadBtn = document.getElementById('download-btn');
+        const coordinatesDisplay = document.getElementById('coordinates-display');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const TILE_SIZE_METERS = 110000;
+        
+        let map = null;
+        let rectangle = null;
+        let selectedCoordinates = null;
+        let currentMapLayer = null;
+        let satelliteLayer = null;
+
+        function initializeMap() {
+
+            map = L.map('map-container').setView([48.8566, 2.3522], 4);
+
+            satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            
+                attribution: 'Tiles &copy; Esri &mdash; Source: Esri, USGS, USDA'
+            
+            });
+
+            currentMapLayer = satelliteLayer;
+            currentMapLayer.addTo(map);
+
+            map.on('click', handleMapClick);
+
+            setTimeout(() => { map.invalidateSize(); }, 100);
+
+        }
+        function handleMapClick(e) {
+
+            const lat = e.latlng.lat;
+            const lng = e.latlng.lng;
+
+            selectedCoordinates = [lat, lng];
+            coordinatesDisplay.textContent = `Selected coordinates: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+            
+            if (rectangle) { map.removeLayer(rectangle); }
+
+            const latDelta = TILE_SIZE_METERS / 111000;
+            const lngDelta = TILE_SIZE_METERS / (111000 * Math.cos(lat * Math.PI / 180));
+            
+            rectangle = L.rectangle([
+                [lat - latDelta/2, lng - lngDelta/2],
+                [lat + latDelta/2, lng + lngDelta/2]
+            ], {
+                color: '#3b82f6',
+                weight: 2,
+                fillOpacity: 0.2
+            }).addTo(map);
+
+            map.setView([lat, lng], map.getZoom());
+
+            showRawTile(lat, lng);
+        }
+
+        function latLngToTileXY(lat, lng, zoom) {
+
+            const latRad = lat * Math.PI / 180;
+            
+            const n = Math.pow(2, zoom);
+            const x = Math.floor((lng + 180) / 360 * n);
+            const y = Math.floor((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n);
+            
+            return { x, y };
+
+        }
+
+        function showRawTile(lat, lng) {
+
+            const ZOOM = 8; 
+
+            const { x, y } = latLngToTileXY(lat, lng, ZOOM);
+            const tileUrl = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${ZOOM}/${y}/${x}`;
+            
+            selectedImage.src = tileUrl;
+
+            selectedImage.style.display = 'block';
+            noSelection.style.display = 'none';
+            downloadBtn.style.display = 'inline-flex';
+
+        }
+
+        downloadBtn.addEventListener('click', () => {
+
+            const downloadLink = document.createElement('a');
+
+            downloadLink.href = selectedImage.src;
+            downloadLink.download = `map-tile-${selectedCoordinates[0].toFixed(4)}-${selectedCoordinates[1].toFixed(4)}.png`;
+            
+            document.body.appendChild(downloadLink);
+
+            downloadLink.click();
+
+            document.body.removeChild(downloadLink);
+
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+
+            initializeMap();
+
+        });
+
+    </script>
+</body>
+</html>
