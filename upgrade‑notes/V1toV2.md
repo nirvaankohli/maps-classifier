@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document outlines the planned improvements and logic upgrades for the training pipeline, moving from **V1** (`trainingV1.py`) to **V2** (`trainingV2.py`). The focus is on leveraging the EuroSAT dataset more effectively, enhancing model performance, and introducing best practices in deep learning workflows. All changes are described in the future tense, as if V2 is about to be implemented, with predictions about its expected impact.
+This document outlines the planned improvements and logic upgrades for the training pipeline, moving from **V1** (`trainingV1.py`) to **V2** (`trainingV2.py`). The focus is on leveraging the EuroSAT dataset more effectively, enhancing model performance, and introducing best practices in deep learning workflows.
 
 ---
 
@@ -113,3 +113,47 @@ This document outlines the planned improvements and logic upgrades for the train
 ---
 
 *These upgrades are designed to push the EuroSAT classification pipeline to state-of-the-art performance and usability. The results will be validated after V2 is implemented and trained.*
+
+---
+
+## V2 Results: Actual Performance and Analysis
+
+After implementing the planned upgrades, V2 was trained and evaluated on the EuroSAT dataset. Below is a summary of the results, with supporting metrics and visualizations.
+
+### Final Metrics
+- **Best Validation Accuracy:** 97.39% (epoch 27)
+- **Final Validation Accuracy:** 97.11% (epoch 30)
+- **Best Validation Loss:** 0.0918
+- **Final Training Accuracy:** 97.30%
+- **Final Training Loss:** 0.0771
+- **Learning Rate Schedule:** Dropped from 0.001 to 0.0005 after epoch 22
+
+*See `V2_log.csv` for full epoch-by-epoch metrics.*
+
+### Training History
+The following plot summarizes the training and validation loss, accuracy, learning rate schedule, and validation accuracy over 30 epochs:
+
+![V2 Training History](../V2_training_history.png)
+
+- **Observation:**
+  - Both training and validation loss decreased steadily, with no significant overfitting.
+  - Validation accuracy consistently improved, peaking above 97%.
+  - The learning rate reduction at epoch 23 helped further refine the model.
+
+### Confusion Matrix
+The confusion matrix below shows the model's performance across all 10 EuroSAT classes:
+
+![V2 Confusion Matrix](../V2_confusion_matrix.png)
+
+- **Interpretation:**
+  - The model demonstrates strong class-wise accuracy, with most predictions on the diagonal.
+  - Minor confusion exists between similar land cover types (e.g., Pasture vs. AnnualCrop, PermanentCrop vs. HerbaceousVegetation), but overall misclassifications are rare.
+  - No class is severely underperforming, indicating good generalization.
+
+### Summary
+- **V2 achieved its goal of surpassing V1's accuracy, reaching a best validation accuracy of 97.39%.**
+- The improved augmentation, model architecture, and reproducibility measures contributed to robust performance.
+- Enhanced logging and visualization (see above) provide clear insight into training dynamics and model strengths/weaknesses.
+
+*V2 sets a new baseline for EuroSAT classification in this project, with strong results and a more maintainable, extensible pipeline.*
+
